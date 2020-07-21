@@ -4,6 +4,9 @@ From fascinating Idea of PINN (ft. Maziar Raissi), this one is baby step to expl
 
 Idea is to make PINN for approximating (Exactly) simple 1-D equations and understand the implementation.
 
+## Examples
+1. Polynomial - f(x) = y = x^2 in range (-20,20)
+
 
 ## Citation
 https://maziarraissi.github.io/PINNs/
