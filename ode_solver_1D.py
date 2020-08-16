@@ -26,7 +26,14 @@ class ODESolver1DBase(object):
     # Equations. User have to create child class of this class and at least 
     # implement loss_and_grad() method.
     
-    def __init__(self, inDim = 1, outDim = 1, nHiddenLayer = 5, nodePerLayer = 10):
+    def __init__(self, 
+                 inDim = 1, 
+                 outDim = 1, 
+                 nHiddenLayer = 5, 
+                 nodePerLayer = 10, 
+                 nIter = 1000,
+                 learningRate = 0.001,
+                 batchSize = 1001):
         # Number of Hidden Layer
         self.nLayers = nHiddenLayer
         
@@ -52,6 +59,15 @@ class ODESolver1DBase(object):
                                        kernel_initializer='random_uniform',
                                        bias_initializer='zeros'))
         
+        # Optimization iterations
+        self.nIter = nIter
+        
+        # Optimization Learning Rate
+        self.learningRate = learningRate
+        
+        # Optimization Batch Size
+        self.batchSize = batchSize
+        
         # Storing History of Loss function to see convergence
         self.lossHistory = []
         
@@ -63,28 +79,46 @@ class ODESolver1DBase(object):
         # This function have to be implemented in Child Class
         pass
     
-    def solve(self, inputs):
-        # This is solver
-        inputs = tf.convert_to_tensor(np.array([inputs]).transpose())
-        
+    def solve(self, trainSet):
         # Selecting optimizer and batch size
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.2)
-        optimizer.batch_size = 1001
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.learningRate)
+        
+        # Create Batch
+        batchList = self.create_batch(trainSet)
+        nBatch = len(batchList)
         
         # Optimization loop
-        for i in range(300):
-            # Calculate loss function and gradient
-            lossValue, grads = self.loss_and_grad(inputs)
-
-            # Store Loss Value for each Iteration           
-            self.lossHistory.append(lossValue.numpy())
+        for i in range(self.nIter):
+            for batch in batchList:
+                # Calculate loss function and gradient
+                lossValue, grads = self.loss_and_grad(batch)
+    
+                # Store Loss Value for each Iteration           
+                self.lossHistory.append(lossValue.numpy())
+                
+                # Print for showing progress
+                print("Iter/Epoch: {}, BatchNo: {}, Loss: {}".format(i+1,
+                                                                     optimizer.iterations.numpy()-i*nBatch+1,
+                                                                     lossValue.numpy()))
+                
+                # Nudge the weights of neural network towards convergence (hopefully)
+                optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))
+                
+    def create_batch(self, trainSet):
+        nBatch = int(trainSet.shape[0]/self.batchSize)+1
+        
+        batchList = []
+        
+        for i in range(nBatch):
+            start = i*self.batchSize
+            end = (i+1)*self.batchSize
+            if end > trainSet.shape[0]:
+                end = trainSet.shape[0]
             
-            # Print for showing progress
-            print("Step: {}, Loss: {}".format(optimizer.iterations.numpy(),
-                                                      lossValue.numpy()))
-            
-            # Nudge the weights of neural network towards convergence (hopefully)
-            optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))
+            if start != end:
+                batchList.append(trainSet[start:end])
+        
+        return batchList
             
     # def get_weights(self):
     #     for layer in self.nnModel.layers:

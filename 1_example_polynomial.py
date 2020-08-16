@@ -25,19 +25,35 @@ class ZeroOrderODE(ODESolver1DBase):
             # Loss Function
             # Here we are actually defining equations
             currentLoss = tf.reduce_sum((yHat - x**2)**2)/len(x)
-        
+            
         return currentLoss, g.gradient(currentLoss, self.nnModel.trainable_variables)
     
+model = ZeroOrderODE(inDim = 1, 
+                     outDim = 1, 
+                     nHiddenLayer = 10, 
+                     nodePerLayer = 50, 
+                     nIter = 500,
+                     learningRate = 0.001,
+                     batchSize=20)
 
-model = ZeroOrderODE()
+# Input Matrix (aka Training)
+trainMin = -20
+trainMax = 20
+nTrain = 20
+scale = trainMax - trainMin
+trainSet = trainMin + scale*tf.constant(np.random.rand(nTrain,1))
 
-train_set = np.linspace(-20,20,101,dtype=np.float64)
+model.solve(trainSet)
 
-model.solve(train_set)
 
+# Testing Set
+nTest = 50
+scale = trainMax - trainMin
+testSet = trainMin + scale*np.random.rand(nTest,1)
 
 plt.figure(0)
-plt.scatter(train_set, model(tf.convert_to_tensor(np.array([train_set]).transpose())))
-plt.scatter(train_set, train_set**2)
+plt.scatter(testSet[:,0], model(tf.convert_to_tensor(testSet)))
+plt.scatter(testSet[:,0], testSet[:,0]**2)
 plt.figure(1)
 plt.plot(model.lossHistory)
+plt.yscale('log')
