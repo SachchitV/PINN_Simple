@@ -19,6 +19,9 @@ tf.keras.backend.set_floatx('float64')
 # to avoid saturation
 def bentIdentity(x):
     return x + (tf.sqrt(x*x+1)-1)/2
+
+def swish(x):
+    return x * tf.math.sigmoid(x)
     
 
 class ODESolver1DBase(object):
@@ -33,7 +36,8 @@ class ODESolver1DBase(object):
                  nodePerLayer = 10, 
                  nIter = 1000,
                  learningRate = 0.001,
-                 batchSize = 1001):
+                 batchSize = 1001,
+                 activation = Activation(swish)):
         # Number of Hidden Layer
         self.nLayers = nHiddenLayer
         
@@ -42,7 +46,7 @@ class ODESolver1DBase(object):
         
         # Add first hidden Layer
         self.nnModel.add(layers.Dense(nodePerLayer, 
-                                      activation=Activation(bentIdentity), 
+                                      activation=activation, 
                                       input_dim=inDim,
                                       kernel_initializer='random_uniform',
                                       bias_initializer='zeros'))
@@ -50,7 +54,7 @@ class ODESolver1DBase(object):
         # Add rest of the hidden layer
         for i in range(self.nLayers-1):
             self.nnModel.add(layers.Dense(nodePerLayer, 
-                                          activation=Activation(bentIdentity),
+                                          activation=activation,
                                           kernel_initializer='random_uniform',
                                           bias_initializer='zeros'))
         
