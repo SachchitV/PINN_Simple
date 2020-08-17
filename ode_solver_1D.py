@@ -101,9 +101,9 @@ class ODESolver1DBase(object):
                 self.lossHistory.append(lossValue.numpy())
                 
                 # Print for showing progress
-                print("Iter/Epoch: {}, BatchNo: {}, Loss: {}".format(i+1,
-                                                                     optimizer.iterations.numpy()-i*nBatch+1,
-                                                                     lossValue.numpy()))
+                print("Epoch: {}, BatchNo: {}, Loss: {}".format(i+1,
+                                                                optimizer.iterations.numpy()-i*nBatch+1,
+                                                                lossValue.numpy()))
                 
                 # Nudge the weights of neural network towards convergence (hopefully)
                 optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))

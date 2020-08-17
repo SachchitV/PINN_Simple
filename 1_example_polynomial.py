@@ -50,10 +50,17 @@ model.solve(trainSet)
 nTest = 50
 scale = trainMax - trainMin
 testSet = trainMin + scale*np.random.rand(nTest,1)
+xTest = testSet[:,0]
 
+# Comparision with actual function
 plt.figure(0)
-plt.scatter(testSet[:,0], model(tf.convert_to_tensor(testSet)))
-plt.scatter(testSet[:,0], testSet[:,0]**2)
+plt.scatter(xTest, model(tf.convert_to_tensor(testSet)), label="Neural Net")
+plt.scatter(xTest, xTest**2, label="Actual")
+plt.legend(bbox_to_anchor=(0,1.02,1,0.2), loc='lower left', ncol=2, mode="expand")
+
+# Convergence History
 plt.figure(1)
 plt.plot(model.lossHistory)
 plt.yscale('log')
+plt.xlabel("Optimizer Iteration")
+plt.ylabel("Loss Value")
