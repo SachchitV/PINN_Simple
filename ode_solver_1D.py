@@ -124,6 +124,6 @@ class ODESolver1DBase(object):
         
         return batchList
             
-    # def get_weights(self):
-    #     for layer in self.nnModel.layers:
-    #         print(layer.get_weights())
+    def get_weights(self):
+        for layer in self.nnModel.layers:
+            print(layer.get_weights())
