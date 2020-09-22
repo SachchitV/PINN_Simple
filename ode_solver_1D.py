@@ -37,7 +37,8 @@ class ODESolver1DBase(object):
                  nIter = 1000,
                  learningRate = 0.001,
                  batchSize = 1001,
-                 activation = Activation(swish)):
+                 activation = Activation(swish),
+                 kernelInitializer = tf.keras.initializers.he_uniform()):
         # Number of Hidden Layer
         self.nLayers = nHiddenLayer
         
@@ -48,19 +49,19 @@ class ODESolver1DBase(object):
         self.nnModel.add(layers.Dense(nodePerLayer, 
                                       activation=activation, 
                                       input_dim=inDim,
-                                      kernel_initializer='random_uniform',
+                                      kernel_initializer=kernelInitializer,
                                       bias_initializer='zeros'))
         
         # Add rest of the hidden layer
         for i in range(self.nLayers-1):
             self.nnModel.add(layers.Dense(nodePerLayer, 
                                           activation=activation,
-                                          kernel_initializer='random_uniform',
+                                          kernel_initializer=kernelInitializer,
                                           bias_initializer='zeros'))
         
         # Add Output Layer
         self.nnModel.add(layers.Dense(outDim, 
-                                       kernel_initializer='random_uniform',
+                                       kernel_initializer=kernelInitializer,
                                        bias_initializer='zeros'))
         
         # Optimization iterations
