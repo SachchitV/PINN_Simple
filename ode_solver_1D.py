@@ -75,6 +75,8 @@ class ODESolver1DBase(object):
         
         # Storing History of Loss function to see convergence
         self.lossHistory = []
+        self.minLoss = -1
+        self.minLossWeights = None
         
     def __call__(self, x):
         # Retun output of neural network with x input
@@ -108,7 +110,23 @@ class ODESolver1DBase(object):
                 
                 # Nudge the weights of neural network towards convergence (hopefully)
                 optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))
-                
+            
+            # Store First loss as minimum loss
+            if self.minLoss < 0:
+                self.minLoss = lossValue.numpy()
+            
+            # Store minimum loss
+            if (self.minLoss > lossValue.numpy()):
+                self.minLoss = lossValue.numpy()
+                self.minLossWeights = self.nnModel.get_weights()
+        
+        self.nnModel.set_weights(self.minLossWeights)
+        
+        print("\n\n")
+        print("------------------------------")
+        print("Minimum Loss: %f"%self.minLoss)
+        print("------------------------------")
+        
     def create_batch(self, trainSet):
         nBatch = int(trainSet.shape[0]/self.batchSize)+1
         
