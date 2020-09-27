@@ -7,9 +7,9 @@ Created on Wed Jul 22 00:26:55 2020
 
 import matplotlib.pyplot as plt
 
-from ode_solver_1D import ODESolver1DBase, tf, np, swish, bentIdentity, Activation
+from pinn_base_model import PINNBaseModel, tf, np, swish, bentIdentity, Activation
 
-class ZeroOrderODE(ODESolver1DBase):
+class ZeroOrderODE(PINNBaseModel):
     # Here we are trying to Approximat f(x) = y = x^2
     # Silly, but helps in understanding implementation
     

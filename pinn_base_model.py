@@ -24,7 +24,7 @@ def swish(x):
     return x * tf.math.sigmoid(x)
     
 
-class ODESolver1DBase(object):
+class PINNBaseModel(object):
     # This is the base class of solver which handles the backend of solving 
     # Equations. User have to create child class of this class and at least 
     # implement loss_and_grad() method.
