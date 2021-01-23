@@ -7,6 +7,7 @@ Idea is to make PINN for approximating (Exactly) simple 1-D equations and unders
 ## Examples
 1. Polynomial - f(x) = y = x^2 in range (-20,20)
 2. Trigonometric - f(x) = y = x + sin(4 pi x) in range (0,1)
+3. 1st_order_ode - df(x)/dx = 1/x in range(0.5,10) with f(1)=0
 
 
 ## Citation
