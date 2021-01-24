@@ -124,7 +124,7 @@ class PINNBaseModel(object):
         
         print("\n\n")
         print("------------------------------")
-        print("Minimum Loss: %f"%self.minLoss)
+        print("Minimum Loss: %.5E"%self.minLoss)
         print("------------------------------")
         
     def create_batch(self, trainSet):
