@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from pinn_base_model import PINNBaseModel, tf, np, swish, bentIdentity, Activation
 
 class FirstOrderODE(PINNBaseModel):
-    # Here we are trying to Approximat f(x) = y = x + sin(4*pi*x)
+    # Here we are trying to Approximat df(x)/dx = dy/dx = 1/x
     # Silly, but helps in understanding implementation
     
     def loss_and_grad(self, x):
@@ -19,13 +19,12 @@ class FirstOrderODE(PINNBaseModel):
         # and also the Gradient of Loss function with respect to all
         # trainable variables
         
-        with tf.GradientTape() as g:
-            g.watch(x)
-            with tf.GradientTape() as gg:
-                gg.watch(x)
+        with tf.GradientTape() as lossTape:
+            with tf.GradientTape() as g:
+                g.watch(x)
                 yHat = self.nnModel(x)
                 
-            dyHatdx = gg.gradient(yHat, x)
+            dyHatdx = g.gradient(yHat, x)
             xInit = tf.convert_to_tensor(np.asarray([[1]]))
             yHatInitCondition = self.nnModel(xInit)
             
@@ -33,7 +32,7 @@ class FirstOrderODE(PINNBaseModel):
             # Here we are actually defining equations
             currentLoss = tf.reduce_sum((dyHatdx - 1/x)**2)/len(x) + tf.reduce_sum((yHatInitCondition-0)**2)
             
-        return currentLoss, g.gradient(currentLoss, self.nnModel.trainable_variables)
+        return currentLoss, lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
     
 model = FirstOrderODE(inDim = 1, 
                      outDim = 1, 

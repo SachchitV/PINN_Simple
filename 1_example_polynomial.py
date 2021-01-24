@@ -19,14 +19,14 @@ class ZeroOrderODE(PINNBaseModel):
         # and also the Gradient of Loss function with respect to all
         # trainable variables
         
-        with tf.GradientTape() as g:
+        with tf.GradientTape() as lossTape:
             yHat = self.nnModel(x)
             
             # Loss Function
             # Here we are actually defining equations
             currentLoss = tf.reduce_sum((yHat - x**2)**2)/len(x)
             
-        return currentLoss, g.gradient(currentLoss, self.nnModel.trainable_variables)
+        return currentLoss, lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
     
 model = ZeroOrderODE(inDim = 1, 
                      outDim = 1, 
