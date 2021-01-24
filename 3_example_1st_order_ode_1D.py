@@ -13,7 +13,8 @@ class FirstOrderODE(PINNBaseModel):
     # Here we are trying to Approximat df(x)/dx = dy/dx = 1/x
     # Silly, but helps in understanding implementation
     
-    def loss_and_grad(self, x):
+    @tf.function
+    def train_step(self, x):
         # All magic happens here. Needs to be written Carefully
         # It have to return single value of Loss Function
         # and also the Gradient of Loss function with respect to all
@@ -30,9 +31,13 @@ class FirstOrderODE(PINNBaseModel):
             
             # Loss Function
             # Here we are actually defining equations
-            currentLoss = tf.reduce_sum((dyHatdx - 1/x)**2)/len(x) + tf.reduce_sum((yHatInitCondition-0)**2)
+            currentLoss = tf.reduce_sum((dyHatdx - 1/x)**2)/x.shape[0] + tf.reduce_sum((yHatInitCondition-0)**2)
             
-        return currentLoss, lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
+        # Nudge the weights of neural network towards convergence (hopefully)
+        grads = lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))
+            
+        return currentLoss
     
 model = FirstOrderODE(inDim = 1, 
                      outDim = 1, 
@@ -40,7 +45,7 @@ model = FirstOrderODE(inDim = 1,
                      nodePerLayer = 50, 
                      nIter = 500,
                      learningRate = 0.001,
-                     batchSize = 100,
+                     batchSize = 50,
                      activation = Activation(swish),
                      kernelInitializer = tf.keras.initializers.he_uniform())
 

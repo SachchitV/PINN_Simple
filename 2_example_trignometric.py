@@ -13,7 +13,8 @@ class ZeroOrderODE(PINNBaseModel):
     # Here we are trying to Approximat f(x) = y = x + sin(4*pi*x)
     # Silly, but helps in understanding implementation
     
-    def loss_and_grad(self, x):
+    @tf.function
+    def train_step(self, x):
         # All magic happens here. Needs to be written Carefully
         # It have to return single value of Loss Function
         # and also the Gradient of Loss function with respect to all
@@ -24,11 +25,13 @@ class ZeroOrderODE(PINNBaseModel):
             
             # Loss Function
             # Here we are actually defining equations
-            currentLoss = tf.reduce_sum((yHat - (x + tf.sin(4*np.pi*x)))**2)/len(x)
+            currentLoss = tf.reduce_sum((yHat - (x + tf.sin(4*np.pi*x)))**2)/x.shape[0]
+                        
+        # Nudge the weights of neural network towards convergence (hopefully)
+        grads = lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.nnModel.trainable_variables))
             
-            # print(x,x + tf.sin(4*np.pi*x))
-            
-        return currentLoss, lossTape.gradient(currentLoss, self.nnModel.trainable_variables)
+        return currentLoss
     
 model = ZeroOrderODE(inDim = 1, 
                      outDim = 1, 
