@@ -71,3 +71,5 @@ plt.plot(model.lossHistory)
 plt.yscale('log')
 plt.xlabel("Optimizer Iteration")
 plt.ylabel("Loss Value")
+
+plt.show()
