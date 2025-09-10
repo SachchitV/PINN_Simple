@@ -1,0 +1,15 @@
+# TensorFlow dependencies (for original implementation)
+tensorflow>=2.0.0
+
+# PyTorch dependencies (for new implementation)
+torch>=1.9.0
+torchvision>=0.10.0
+
+# Common dependencies
+numpy>=1.18.0
+matplotlib>=3.0.0
+jupyter>=1.0.0
+notebook>=6.0.0
+
+# Optional: for better performance
+scipy>=1.7.0

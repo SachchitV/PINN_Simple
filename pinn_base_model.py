@@ -1,142 +1,220 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Feb  8 15:19:02 2020
+PyTorch version of PINN Base Model
+Created based on TensorFlow version from Sat Feb  8 15:19:02 2020
 
 @author: sachchit
 """
 
 # Importing Basic Libraries
-import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow.keras.layers import Activation
-
+import torch
+import torch.nn as nn
+import torch.optim as optim
 import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader, TensorDataset
+import warnings
+warnings.filterwarnings('ignore')
 
-config = tf.compat.v1.ConfigProto(gpu_options = 
-                         tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=0.8)
-# device_count = {'GPU': 1}
-)
-config.gpu_options.allow_growth = True
-session = tf.compat.v1.Session(config=config)
-tf.compat.v1.keras.backend.set_session(session)
+# Set device (GPU if available, otherwise CPU)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
-tf.keras.backend.set_floatx('float64')
+# Set random seeds for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
 
+# GPU configuration
+if torch.cuda.is_available():
+    print(f"GPU acceleration enabled: {torch.cuda.get_device_name(0)}")
+    # Enable memory growth for PyTorch
+    torch.backends.cudnn.benchmark = True
+else:
+    print("No GPU detected, using CPU")
+
+# Set default dtype
+torch.set_default_dtype(torch.float32)
 
 # Defining BentIdentity Function which will be used as activation function
 # to avoid saturation
 def bentIdentity(x):
-    return x + (tf.sqrt(x*x+1)-1)/2
+    return x + (torch.sqrt(x*x+1)-1)/2
 
 def swish(x):
-    return x * tf.math.sigmoid(x)
-    
+    return x * torch.sigmoid(x)
 
-class PINNBaseModel(object):
-    # This is the base class of solver which handles the backend of solving 
-    # Equations. User have to create child class of this class and at least 
-    # implement loss_and_grad() method.
+class Activation:
+    """Wrapper class to match TensorFlow's Activation interface"""
+    def __init__(self, activation_func):
+        self.activation_func = activation_func
+    
+    def __call__(self, x):
+        return self.activation_func(x)
+
+class PINNBaseModel(nn.Module):
+    """
+    PyTorch version of PINN Base Model
+    This is the base class of solver which handles the backend of solving 
+    Equations. User have to create child class of this class and at least 
+    implement train_step() method.
+    """
     
     def __init__(self, 
-                 inDim = 1, 
-                 outDim = 1, 
-                 nHiddenLayer = 5, 
-                 nodePerLayer = 10, 
-                 nIter = 1000,
-                 learningRate = 0.001,
-                 batchSize = 1001,
-                 activation = Activation(swish),
-                 kernelInitializer = tf.keras.initializers.he_uniform()):
-        # Number of Hidden Layer
+                 inDim=1, 
+                 outDim=1, 
+                 nHiddenLayer=5, 
+                 nodePerLayer=10,
+                 nIter=1000,
+                 learningRate=0.001,
+                 batchSize=1001,
+                 activation=Activation(swish),
+                 kernelInitializer='he_uniform'):
+        super(PINNBaseModel, self).__init__()
+        
+        # Store hyperparameters
         self.nLayers = nHiddenLayer
-        
-        # Neural Network Model is simple sequential model
-        self.nnModel = tf.keras.Sequential()
-        
-        # Add first hidden Layer
-        self.nnModel.add(layers.Dense(nodePerLayer, 
-                                      activation=activation, 
-                                      input_dim=inDim,
-                                      kernel_initializer=kernelInitializer,
-                                      bias_initializer='zeros'))
-        
-        # Add rest of the hidden layer
-        for i in range(self.nLayers-1):
-            self.nnModel.add(layers.Dense(nodePerLayer, 
-                                          activation=activation,
-                                          kernel_initializer=kernelInitializer,
-                                          bias_initializer='zeros'))
-        
-        # Add Output Layer
-        self.nnModel.add(layers.Dense(outDim, 
-                                       kernel_initializer=kernelInitializer,
-                                       bias_initializer='zeros'))
-        
-        # Optimization iterations
         self.nIter = nIter
-        
-        # Optimization Learning Rate
         self.learningRate = learningRate
-        
-        # Selecting optimizer and batch size
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learningRate)
-        
-        # Optimization Batch Size
         self.batchSize = batchSize
         
-        # Storing History of Loss function to see convergence
-        self.lossHistory = []
-        self.minLoss = -1.
-        self.minLossWeights = self.nnModel.get_weights()
+        # Create neural network layers
+        self.layers = nn.ModuleList()
         
+        # Input layer
+        self.layers.append(nn.Linear(inDim, nodePerLayer))
+        
+        # Hidden layers
+        for _ in range(nHiddenLayer - 1):
+            self.layers.append(nn.Linear(nodePerLayer, nodePerLayer))
+        
+        # Output layer
+        self.layers.append(nn.Linear(nodePerLayer, outDim))
+        
+        # Set activation function
+        if hasattr(activation, 'activation_func'):
+            self.activation = activation.activation_func
+        else:
+            self.activation = activation
+        
+        # Initialize weights
+        self._initialize_weights(kernelInitializer)
+        
+        # Set up optimizer
+        self.optimizer = optim.Adam(self.parameters(), lr=learningRate)
+        
+        # Training history
+        self.lossHistory = []
+        self.minLoss = float('inf')
+        self.minLossWeights = None
+        
+    def _initialize_weights(self, init_type):
+        """Initialize network weights"""
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                if init_type == 'he_uniform':
+                    nn.init.kaiming_uniform_(layer.weight, nonlinearity='relu')
+                elif init_type == 'he_normal':
+                    nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
+                elif init_type == 'xavier_uniform':
+                    nn.init.xavier_uniform_(layer.weight)
+                elif init_type == 'xavier_normal':
+                    nn.init.xavier_normal_(layer.weight)
+                else:
+                    nn.init.kaiming_uniform_(layer.weight, nonlinearity='relu')
+                nn.init.zeros_(layer.bias)
+    
+    def forward(self, x):
+        """Forward pass through the network"""
+        for i, layer in enumerate(self.layers[:-1]):
+            x = layer(x)
+            x = self.activation(x)
+        
+        # Output layer (no activation)
+        x = self.layers[-1](x)
+        return x
+    
     def __call__(self, x):
-        # Retun output of neural network with x input
-        return self.nnModel(x)
+        """Return output of neural network with x input"""
+        return self.forward(x)
     
     def train_step(self, x):
-        # This function have to be implemented in Child Class
-        pass
+        """
+        This method should be implemented in child classes.
+        It defines the loss function and physics constraints.
+        """
+        raise NotImplementedError("train_step must be implemented in child class")
     
     def solve(self, trainSet):
-               
-        # Create Batch
-        batchList = self.create_batch(trainSet)
-        nBatch = len(batchList)
+        """
+        Main training loop
+        """
+        self.train()  # Set to training mode
         
-        # Optimization loop
-        for i in range(self.nIter):
-            for batch in batchList:
-                # Calculate loss function and gradient
-                lossValue = self.train_step(batch)
-    
-                # Store Loss Value for each Iteration           
-                self.lossHistory.append(lossValue.numpy())
+        # Convert to PyTorch tensor if needed
+        if not isinstance(trainSet, torch.Tensor):
+            trainSet = torch.tensor(trainSet, dtype=torch.float32, device=device)
+        
+        # Ensure model is on the correct device
+        self.to(device)
+        
+        # Create data loader
+        dataset = TensorDataset(trainSet)
+        dataloader = DataLoader(dataset, batch_size=self.batchSize, shuffle=True)
+        
+        print("Starting training...")
+        print("=" * 50)
+        
+        for epoch in range(self.nIter):
+            epoch_loss = 0.0
+            num_batches = 0
+            
+            for batch_idx, (batch_data,) in enumerate(dataloader):
+                # Zero gradients
+                self.optimizer.zero_grad()
                 
-                # Print for showing progress
-                tf.print("Epoch: {}, BatchNo: {}, Loss: {}".format(i+1,
-                                                                self.optimizer.iterations.numpy()-i*nBatch+1,
-                                                                self.lossHistory[-1]))
+                # Compute loss
+                loss = self.train_step(batch_data)
+                
+                # Backward pass
+                loss.backward()
+                
+                # Update weights
+                self.optimizer.step()
+                
+                epoch_loss += loss.item()
+                num_batches += 1
+                
+                # Print progress
+                if batch_idx % 10 == 0:
+                    print(f"Epoch: {epoch+1}/{self.nIter}, "
+                          f"Batch: {batch_idx+1}/{len(dataloader)}, "
+                          f"Loss: {loss.item():.6e}")
             
-            # Store First loss as minimum loss
-            if self.minLoss < 0:
-                self.minLoss = self.lossHistory[-1]
+            # Average loss for this epoch
+            avg_loss = epoch_loss / num_batches
+            self.lossHistory.append(avg_loss)
             
-            # Store minimum loss
-            if (self.minLoss > self.lossHistory[-1]):
-                self.minLoss = self.lossHistory[-1]
-                self.minLossWeights = self.nnModel.get_weights()
+            # Keep track of best weights
+            if avg_loss < self.minLoss:
+                self.minLoss = avg_loss
+                self.minLossWeights = {name: param.clone() for name, param in self.named_parameters()}
         
-        self.nnModel.set_weights(self.minLossWeights)
+        # Load best weights
+        if self.minLossWeights is not None:
+            for name, param in self.named_parameters():
+                param.data = self.minLossWeights[name]
         
-        tf.print("\n\n")
-        tf.print("------------------------------")
-        tf.print("Minimum Loss: %.5E"%self.minLoss)
-        tf.print("------------------------------")
+        print("=" * 50)
+        print(f"Training completed!")
+        print(f"Minimum Loss: {self.minLoss:.6e}")
+        print("=" * 50)
     
-    @tf.function
     def create_batch(self, trainSet):
-        nBatch = int(trainSet.shape[0]/self.batchSize)+1
+        """Create batches from training set (for compatibility with TensorFlow version)"""
+        if not isinstance(trainSet, torch.Tensor):
+            trainSet = torch.tensor(trainSet, dtype=torch.float32, device=device)
         
+        nBatch = int(trainSet.shape[0]/self.batchSize)+1
         batchList = []
         
         for i in range(nBatch):
@@ -150,7 +228,26 @@ class PINNBaseModel(object):
         
         return batchList
     
-    @tf.function        
     def get_weights(self):
-        for layer in self.nnModel.layers:
-            print(layer.get_weights())
+        """Print weights for debugging (for compatibility with TensorFlow version)"""
+        for i, layer in enumerate(self.layers):
+            if isinstance(layer, nn.Linear):
+                print(f"Layer {i}:")
+                print(f"  Weight: {layer.weight.data}")
+                print(f"  Bias: {layer.bias.data}")
+    
+    def save_model(self, filepath):
+        """Save model with proper device handling"""
+        torch.save(self.state_dict(), filepath)
+        print(f"Model saved to {filepath}")
+    
+    def load_model(self, filepath):
+        """Load model with proper device handling"""
+        self.load_state_dict(torch.load(filepath, map_location=device))
+        self.to(device)
+        self.eval()
+        print(f"Model loaded from {filepath} and moved to {device}")
+
+# For compatibility with TensorFlow version
+tf = torch  # Alias for easier migration
+np = np
