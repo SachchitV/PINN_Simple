@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 
-from pinn_base_model import PINNBaseModel, swish, bentIdentity, Activation, device
+from pinn_base_model import PINNBaseModel, swish, bentIdentity, device
 
 class ZeroOrderODE(PINNBaseModel):
     # Here we are trying to Approximate f(x) = y = x^2
@@ -43,7 +43,7 @@ model = ZeroOrderODE(inDim=1,
                      nIter=500,
                      learningRate=0.001,
                      batchSize=20,
-                     activation=Activation(swish),
+                     activation=swish,
                      kernelInitializer='he_uniform')
 
 # Move model to device
@@ -54,7 +54,7 @@ trainMin = -20
 trainMax = 20
 nTrain = 20
 scale = trainMax - trainMin
-trainSet = trainMin + scale * torch.tensor(np.random.rand(nTrain, 1), dtype=torch.float32, device=device)
+trainSet = trainMin + scale * torch.tensor(np.random.rand(nTrain, 1), dtype=torch.float64, device=device)
 
 # Train the model
 model.solve(trainSet)
@@ -63,7 +63,7 @@ model.solve(trainSet)
 nTest = 50
 scale = trainMax - trainMin
 testSet = trainMin + scale * np.random.rand(nTest, 1)
-testSet_tensor = torch.tensor(testSet, dtype=torch.float32, device=device)
+testSet_tensor = torch.tensor(testSet, dtype=torch.float64, device=device)
 xTest = testSet[:, 0]
 
 # Get predictions

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 
-from pinn_base_model import PINNBaseModel, swish, bentIdentity, Activation, device
+from pinn_base_model import PINNBaseModel, swish, bentIdentity, device
 
 class FirstOrderODE(PINNBaseModel):
     # Here we are trying to Approximate df(x)/dx = dy/dx = 1/x
@@ -39,7 +39,7 @@ class FirstOrderODE(PINNBaseModel):
                                     retain_graph=True)[0]
         
         # Initial condition: y(1) = 0
-        xInit = torch.tensor([[1.0]], dtype=torch.float32, device=device)
+        xInit = torch.tensor([[1.0]], dtype=torch.float64, device=device)
         yHatInitCondition = self.forward(xInit)
         
         # Loss Function
@@ -60,10 +60,10 @@ model = FirstOrderODE(inDim=1,
                       outDim=1, 
                       nHiddenLayer=10, 
                       nodePerLayer=50, 
-                      nIter=500,
+                      nIter=100,
                       learningRate=0.001,
                       batchSize=50,
-                      activation=Activation(swish),
+                      activation=swish,
                       kernelInitializer='he_uniform')
 
 # Move model to device
@@ -74,7 +74,7 @@ trainMin = 0.5
 trainMax = 10
 nTrain = 50
 scale = trainMax - trainMin
-trainSet = trainMin + scale * torch.tensor(np.random.rand(nTrain, 1), dtype=torch.float32, device=device)
+trainSet = trainMin + scale * torch.tensor(np.random.rand(nTrain, 1), dtype=torch.float64, device=device)
 
 # Train the model
 model.solve(trainSet)
@@ -83,7 +83,7 @@ model.solve(trainSet)
 nTest = 50
 scale = trainMax - trainMin
 testSet = trainMin + scale * np.random.rand(nTest, 1)
-testSet_tensor = torch.tensor(testSet, dtype=torch.float32, device=device)
+testSet_tensor = torch.tensor(testSet, dtype=torch.float64, device=device)
 xTest = testSet[:, 0]
 
 # Get predictions
@@ -126,7 +126,7 @@ print(f"Final Training Loss: {model.lossHistory[-1]:.6e}")
 
 # Additional analysis: Check derivative
 print(f"\nDerivative Analysis:")
-x_test_deriv = torch.tensor([[2.0], [3.0], [5.0]], dtype=torch.float32, device=device)
+x_test_deriv = torch.tensor([[2.0], [3.0], [5.0]], dtype=torch.float64, device=device)
 x_test_deriv.requires_grad_(True)
 y_test = model(x_test_deriv)
 dy_dx = torch.autograd.grad(y_test, x_test_deriv, 

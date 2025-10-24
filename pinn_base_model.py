@@ -11,7 +11,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, TensorDataset
 import warnings
 warnings.filterwarnings('ignore')
@@ -33,7 +32,7 @@ else:
     print("No GPU detected, using CPU")
 
 # Set default dtype
-torch.set_default_dtype(torch.float32)
+torch.set_default_dtype(torch.float64)
 
 # Defining BentIdentity Function which will be used as activation function
 # to avoid saturation
@@ -42,14 +41,6 @@ def bentIdentity(x):
 
 def swish(x):
     return x * torch.sigmoid(x)
-
-class Activation:
-    """Wrapper class to match TensorFlow's Activation interface"""
-    def __init__(self, activation_func):
-        self.activation_func = activation_func
-    
-    def __call__(self, x):
-        return self.activation_func(x)
 
 class PINNBaseModel(nn.Module):
     """
@@ -67,7 +58,7 @@ class PINNBaseModel(nn.Module):
                  nIter=1000,
                  learningRate=0.001,
                  batchSize=1001,
-                 activation=Activation(swish),
+                 activation=swish,
                  kernelInitializer='he_uniform'):
         super(PINNBaseModel, self).__init__()
         
@@ -90,11 +81,7 @@ class PINNBaseModel(nn.Module):
         # Output layer
         self.layers.append(nn.Linear(nodePerLayer, outDim))
         
-        # Set activation function
-        if hasattr(activation, 'activation_func'):
-            self.activation = activation.activation_func
-        else:
-            self.activation = activation
+        self.activation = activation
         
         # Initialize weights
         self._initialize_weights(kernelInitializer)
@@ -152,7 +139,7 @@ class PINNBaseModel(nn.Module):
         
         # Convert to PyTorch tensor if needed
         if not isinstance(trainSet, torch.Tensor):
-            trainSet = torch.tensor(trainSet, dtype=torch.float32, device=device)
+            trainSet = torch.tensor(trainSet, dtype=torch.float64, device=device)
         
         # Ensure model is on the correct device
         self.to(device)
@@ -212,7 +199,7 @@ class PINNBaseModel(nn.Module):
     def create_batch(self, trainSet):
         """Create batches from training set (for compatibility with TensorFlow version)"""
         if not isinstance(trainSet, torch.Tensor):
-            trainSet = torch.tensor(trainSet, dtype=torch.float32, device=device)
+            trainSet = torch.tensor(trainSet, dtype=torch.float64, device=device)
         
         nBatch = int(trainSet.shape[0]/self.batchSize)+1
         batchList = []
@@ -247,7 +234,3 @@ class PINNBaseModel(nn.Module):
         self.to(device)
         self.eval()
         print(f"Model loaded from {filepath} and moved to {device}")
-
-# For compatibility with TensorFlow version
-tf = torch  # Alias for easier migration
-np = np
